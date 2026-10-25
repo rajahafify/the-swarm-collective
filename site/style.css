@@ -1,0 +1,72 @@
+:root {
+  --void: #0b0d10;
+  --rack: #1a1e24;
+  --sodium: #ffb454;
+  --cyan: #6fe3ff;
+  --paper: #e8edf2;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--void);
+  color: var(--paper);
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+body {
+  display: grid;
+  place-items: center;
+  padding: 8vh 6vw;
+  background:
+    radial-gradient(circle at 70% 20%, rgba(255, 180, 84, 0.09), transparent 45%),
+    radial-gradient(circle at 20% 80%, rgba(111, 227, 255, 0.06), transparent 50%),
+    var(--void);
+}
+
+main { max-width: 44rem; }
+
+.stamp {
+  color: var(--sodium);
+  font-size: 0.72rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  opacity: 0.8;
+}
+
+h1 {
+  font-size: clamp(2.6rem, 8vw, 5rem);
+  line-height: 0.94;
+  letter-spacing: -0.03em;
+  margin: 0.6rem 0 1.4rem;
+  font-weight: 600;
+}
+
+.lede {
+  color: #a9b4bf;
+  font-size: 1.02rem;
+  line-height: 1.7;
+  max-width: 34rem;
+}
+
+.enter {
+  display: inline-block;
+  margin-top: 1.6rem;
+  padding: 0.85rem 1.6rem;
+  color: var(--void);
+  background: var(--cyan);
+  text-decoration: none;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.enter:hover { background: #9beeff; }
+
+.note {
+  margin-top: 3.5rem;
+  color: #5c6773;
+  font-size: 0.74rem;
+  line-height: 1.7;
+}
