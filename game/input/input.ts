@@ -6,14 +6,17 @@ const ACTIONS: Record<string, Action> = {
   KeyQ: 'lens',
   KeyZ: 'shutterSpeed',
   KeyX: 'delete',
-  KeyC: 'view',
+  KeyV: 'view',
   Enter: 'launch'
 };
 
 /**
  * Heading convention: forward is (sin yaw, cos yaw). With +Y up and the camera
  * looking down +Z at yaw 0, screen-right is -X. So a right turn *decreases*
- * yaw: mouse right and D must both subtract.
+ * yaw: mouse right and right stick right must both subtract.
+ *
+ * Layout is plain FPS: mouse turns the airframe and tilts the gimbal, W/S fly
+ * forward and back, A/D strafe, Space up, C down. No Ctrl: Ctrl+W closes the tab.
  */
 export class Input {
   pointer = { x: 0, y: 0, clicked: false };
@@ -28,6 +31,7 @@ export class Input {
   private zoomHeld = false;
   private lockUnavailable = false;
   private padPrev: boolean[] = [];
+  private lastSample = 0;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -111,28 +115,36 @@ export class Input {
 
   sample(): Command {
     const cmd = emptyCommand();
+    const now = performance.now();
+    const dt = this.lastSample > 0 ? Math.min(0.1, (now - this.lastSample) / 1000) : 0;
+    this.lastSample = now;
+
     const fwd = (this.down.has('KeyW') ? 1 : 0) - (this.down.has('KeyS') ? 1 : 0);
-    const yaw = (this.down.has('KeyA') ? 1 : 0) - (this.down.has('KeyD') ? 1 : 0);
-    const lift = (this.down.has('Space') ? 1 : 0) - (this.down.has('ControlLeft') ? 1 : 0);
+    const strafe = (this.down.has('KeyD') ? 1 : 0) - (this.down.has('KeyA') ? 1 : 0);
+    const lift = (this.down.has('Space') ? 1 : 0) - (this.down.has('KeyC') ? 1 : 0);
 
     cmd.forward = fwd;
-    cmd.yaw = yaw;
+    cmd.strafe = strafe;
     cmd.lift = lift;
-    cmd.sprint = this.down.has('ShiftLeft');
+    cmd.sprint = this.down.has('ShiftLeft') || this.down.has('ShiftRight');
     cmd.zoom = this.zoomHeld;
-    cmd.gimbalYawDelta = this.yawDelta;
+    cmd.yawDelta = this.yawDelta;
     cmd.gimbalPitchDelta = this.pitchDelta;
 
+    // Standard pad: left stick moves and strafes, right stick X yaws, right
+    // stick Y tilts the gimbal. D-pad up and down for altitude.
     const pad = navigator.getGamepads?.()[0] ?? null;
     if (pad) {
       const ax = pad.axes[0] ?? 0;
       const ay = pad.axes[1] ?? 0;
       const rx = pad.axes[2] ?? 0;
       const ry = pad.axes[3] ?? 0;
-      if (Math.abs(ax) > 0.15) cmd.yaw = -ax;
-      if (Math.abs(ay) > 0.15) cmd.lift = -ay;
-      if (Math.abs(ry) > 0.15) cmd.forward = -ry;
+      if (Math.abs(ax) > 0.15) cmd.strafe = ax;
+      if (Math.abs(ay) > 0.15) cmd.forward = -ay;
       if (Math.abs(rx) > 0.15) cmd.yaw = -rx;
+      if (Math.abs(ry) > 0.15) cmd.gimbalPitchDelta -= ry * 1.6 * dt;
+      if (pad.buttons[12]?.pressed) cmd.lift = 1;
+      if (pad.buttons[13]?.pressed) cmd.lift = -1;
       if ((pad.buttons[6]?.value ?? 0) > 0.4) cmd.sprint = true;
       if ((pad.buttons[5]?.value ?? 0) > 0.4) cmd.zoom = true;
 
@@ -141,7 +153,8 @@ export class Input {
         [0, 'interact'],
         [2, 'light'],
         [3, 'lens'],
-        [1, 'delete']
+        [1, 'delete'],
+        [11, 'view']
       ];
       for (const [index, action] of edges) {
         const pressed = pad.buttons[index]?.pressed ?? false;

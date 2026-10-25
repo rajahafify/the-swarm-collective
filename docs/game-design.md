@@ -159,7 +159,7 @@ Night industrial, silhouette first. You identify a unit, a lane and an exit by s
 - **Notes to self:** etched glyphs on geometry, legible only up close. No floating icons, no markers.
 - **HUD:** hollow frames, corner ticks, no filled panels. JetBrains Mono. Suspicion is an arc around the reticle plus a thin top-edge bar. Memory slots are small squares bottom right; a filled square is a photo you are carrying.
 - **Two views.** Chase by default, so you can see the drone's attitude and read the controls; C raises the camera to the lens for framing and shooting. The crosshair belongs to the lens and only exists there. The drone is never drawn in lens view.
-- **Fly where you look.** The mouse aims the gimbal, and holding forward swings the airframe toward it at about 100 degrees a second, handing the yaw from gimbal to body so the view never moves. Looking right and pressing W turns you right instead of sliding you sideways, and the gimbal re-centres as you fly.
+- **Fly where you look.** Mouse X turns the airframe directly, like an FPS, so W always flies where the camera points. Mouse Y tilts the gimbal. A/D strafe.
 - **Camera and motion:** the lens sets the FOV (65, 45, 30 degrees for tiers 1 to 3), plus 6 while sprinting, halved while zoomed. 0.15 s eases, shake only on collision and near misses. No bloom, no bounce.
 - **Audio:** three cues. Rotor pitch tied to throttle, a low factory hum, one alarm sting. Hearing a unit before seeing it is half the loop.
 

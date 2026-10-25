@@ -16,6 +16,13 @@ export function approach(current: number, target: number, rate: number, dt: numb
   return current + (target - current) * t;
 }
 
+/** Wrap an angle into (-PI, PI]. */
+export function wrapAngle(a: number): number {
+  const t = Math.PI * 2;
+  const w = a - t * Math.floor((a + Math.PI) / t);
+  return w === -Math.PI ? Math.PI : w;
+}
+
 export function v3(x = 0, y = 0, z = 0): Vec3 {
   return { x, y, z };
 }

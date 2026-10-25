@@ -63,7 +63,7 @@ Modelled on a DJI camera drone, not FPV acro: self-levelling angle mode, altitud
 
 **Sprint is the most visible move, not the loudest.** At 38 degrees the drift off lane is obvious. Suspicion punishes pattern breaks rather than speed, so going fast is cheap inside a lane and expensive outside one.
 
-**Controls.** Keyboard: W/S pitch, A/D yaw, Space/Ctrl altitude, Shift sprint, mouse gimbal, C raises or lowers the camera. Gamepad: Mode 2, left stick yaw and throttle, right stick pitch and roll, which is what anyone who has flown a drone already holds.
+**Controls.** Plain FPS layout. Mouse X turns the airframe, mouse Y tilts the gimbal. W/S forward and back, A/D strafe, Space/C altitude, Shift sprint, V raises or lowers the camera. No Ctrl bindings: Ctrl+W closes the tab. Gamepad: left stick move and strafe, right stick yaw and gimbal pitch, d-pad altitude.
 
 **Two views, one craft (decided 26 Oct 2026).** Chase is the default: the camera sits 2.3 m behind and 1.15 m above the airframe, looking six metres ahead, and pulls in when a rack would block it. It exists because a pilot who cannot see the drone cannot read its attitude, and attitude is the whole control scheme: nose-down means moving, bank means turning, rotor pitch means throttle. The lens view is the gimbal, with the crosshair, and it is the only view that shows the frame you are about to photograph. The drone is drawn in chase and hidden in lens, and the pod visibly counter-rotates against the airframe so the gimbal reads as stabilised.
 

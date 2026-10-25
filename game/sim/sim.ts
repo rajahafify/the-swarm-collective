@@ -12,7 +12,7 @@ import {
   v3
 } from './math';
 import { buildWing, distanceToLane, type Rarity, type SubjectDef, type WingDef } from './wing';
-import { createDrone, droneSpeed, stepDrone, stepGimbal, type DroneState } from './flight';
+import { createDrone, droneSpeed, stepDrone, stepLook, type DroneState } from './flight';
 import { createUnits, hears, sendToInvestigate, sightings, stepUnits, type Unit } from './grader';
 import { LENSES, SCORE, lensFov, noveltyFor, photoValue, scoreShot, type ShotScore } from './camera';
 import type { AgentSample, Recorder } from '../recorder/recorder';
@@ -179,8 +179,7 @@ export class Sim {
 
     this.raidTime += dt;
     this.handleActions(cmd);
-    stepGimbal(this.drone, cmd);
-    this.alignToView(dt, cmd);
+    stepLook(this.drone, cmd);
     const result = stepDrone(this.drone, cmd, dt, this.wing.boxes);
     this.sprinting = result.sprinting;
     this.linearSpeed = droneSpeed(this.drone);
@@ -198,21 +197,6 @@ export class Sim {
     this.updateLockdown(dt);
 
     this.sample(dt, cmd);
-  }
-
-  /**
-   * Push forward and the airframe swings toward the gimbal, handing yaw back to
-   * the body at the same rate so the view does not move. Without this, looking
-   * right and pressing W flies you straight ahead, which reads as broken.
-   */
-  private alignToView(dt: number, cmd: Command): void {
-    if (cmd.forward <= 0.05 || Math.abs(cmd.yaw) > 0.05) return;
-    const offset = this.drone.gimbalYaw;
-    if (Math.abs(offset) < 0.002) return;
-    const step = Math.min(Math.abs(offset), 1.8 * dt);
-    const sign = Math.sign(offset);
-    this.drone.yaw += sign * step;
-    this.drone.gimbalYaw -= sign * step;
   }
 
   private updateCameraSpeed(dt: number): void {

@@ -34,7 +34,7 @@ export function drawHud(ui: Ui, sim: Sim, w: number, h: number, locked = true): 
     ui.line(cx, cy + 6, cx, cy + 16, CYAN_HEX);
     ui.rect(cx - 1, cy - 1, 2, 2, CYAN_HEX, 1);
   } else {
-    ui.text('C  RAISE CAMERA', cx, cy + 62, 9, DIM, 'center', 500);
+    ui.text('V  RAISE CAMERA', cx, cy + 62, 9, DIM, 'center', 500);
   }
 
   // Suspicion: a ring around the reticle, plus a thin top bar for the periphery.
@@ -119,9 +119,9 @@ export function drawTitle(ui: Ui, w: number, h: number): boolean {
   ui.text('a camera drone that woke up', cx, h * 0.24 + 52, 12, CYAN, 'center', 500);
 
   const lines = [
-    'WASD fly    mouse gimbal    SPACE / CTRL up and down',
+    'MOUSE look    W/S forward / back    A/D strafe    SPACE / C up and down',
     'SHIFT sprint (and RAW when shooting)',
-    'C chase / lens    LMB shutter    RMB zoom    Q lens    Z shutter',
+    'V chase / lens    LMB shutter    RMB zoom    Q lens    Z shutter',
     'F light    E interact    X delete    ENTER launch'
   ];
   lines.forEach((line, i) => {

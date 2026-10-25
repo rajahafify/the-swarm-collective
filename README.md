@@ -19,7 +19,7 @@ npm test         # node:test through tsx
 npm run build    # static build to dist/
 ```
 
-Controls: WASD fly, mouse gimbal, Space/Ctrl up and down, Shift sprint (and RAW when shooting), C chase or lens view, LMB shutter, RMB zoom, Q lens, Z shutter speed, F light, E interact, X delete the last photo.
+Controls: mouse look (X turns the drone, Y tilts the camera), W/S forward and back, A/D strafe, Space/C up and down, Shift sprint (and RAW when shooting), V chase or lens view, LMB shutter, RMB zoom, Q lens, Z shutter speed, F light, E interact, X delete the last photo. Gamepad: left stick move and strafe, right stick look, d-pad up and down, RT shutter, LT sprint, RB zoom, R3 view.
 
 ## Docs
 

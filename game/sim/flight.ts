@@ -1,5 +1,5 @@
 import type { Command, Vec3 } from '../../shared/types';
-import { approach, clamp, DEG, scale, v3, type Aabb } from './math';
+import { approach, clamp, DEG, scale, v3, wrapAngle, type Aabb } from './math';
 
 export const FLIGHT = {
   maxTilt: 30 * DEG,
@@ -14,7 +14,6 @@ export const FLIGHT = {
   brakeRate: 12,
   verticalRate: 6,
   radius: 0.25,
-  gimbalLimit: 75 * DEG,
   gimbalPitchMin: -85 * DEG,
   gimbalPitchMax: 30 * DEG
 } as const;
@@ -50,20 +49,27 @@ export interface StepResult {
 }
 
 export function stepDrone(s: DroneState, cmd: Command, dt: number, boxes: Aabb[]): StepResult {
-  // Yaw: stick rate with a 0.25 s ramp, so turning away costs time.
+  // Stick yaw (gamepad): rate with a 0.18 s ramp. Mouse yaw is applied in stepLook.
   const yawTarget = clamp(cmd.yaw, -1, 1) * FLIGHT.yawRate;
   s.yawVel = approach(s.yawVel, yawTarget, 1 / FLIGHT.yawTau, dt);
-  s.yaw += s.yawVel * dt;
+  s.yaw = wrapAngle(s.yaw + s.yawVel * dt);
 
-  const sprinting = cmd.sprint && Math.abs(cmd.forward) > 0.05;
+  // Forward is (sin yaw, cos yaw); right is a quarter turn clockwise, (-cos yaw, sin yaw).
+  let fwd = clamp(cmd.forward, -1, 1);
+  let side = clamp(cmd.strafe, -1, 1);
+  const stick = Math.hypot(fwd, side);
+  if (stick > 1) {
+    fwd /= stick;
+    side /= stick;
+  }
+  const moving = stick > 0.05;
+  const sprinting = cmd.sprint && moving;
   const top = sprinting ? FLIGHT.sprint : FLIGHT.cruise;
   const fx = Math.sin(s.yaw);
   const fz = Math.cos(s.yaw);
-  const wanted = cmd.forward * top;
-  const desiredX = fx * wanted;
-  const desiredZ = fz * wanted;
+  const desiredX = (fx * fwd - fz * side) * top;
+  const desiredZ = (fz * fwd + fx * side) * top;
 
-  const moving = Math.abs(cmd.forward) > 0.05;
   const rate = moving ? FLIGHT.accelRate : FLIGHT.brakeRate;
   s.vel.x = approach(s.vel.x, desiredX, rate, dt);
   s.vel.z = approach(s.vel.z, desiredZ, rate, dt);
@@ -76,9 +82,9 @@ export function stepDrone(s: DroneState, cmd: Command, dt: number, boxes: Aabb[]
   s.pos.z += s.vel.z * dt;
 
   // Cosmetic attitude: tilt follows the stick, bank follows the turn.
-  const tiltTarget = (moving ? (sprinting ? FLIGHT.sprintTilt : FLIGHT.maxTilt) * cmd.forward : 0);
-  s.tilt = approach(s.tilt, tiltTarget, 8, dt);
-  s.bank = approach(s.bank, -s.yawVel * 0.22, 8, dt);
+  const lean = sprinting ? FLIGHT.sprintTilt : FLIGHT.maxTilt;
+  s.tilt = approach(s.tilt, moving ? lean * fwd : 0, 8, dt);
+  s.bank = approach(s.bank, -s.yawVel * 0.22 + (moving ? lean * 0.6 * side : 0), 8, dt);
 
   const collided = resolveBoxes(s, boxes);
   const speed = Math.hypot(s.vel.x, s.vel.z);
@@ -139,8 +145,9 @@ function resolveBoxes(s: DroneState, boxes: Aabb[]): boolean {
   return hit;
 }
 
-export function stepGimbal(s: DroneState, cmd: Command): void {
-  s.gimbalYaw = clamp(s.gimbalYaw + cmd.gimbalYawDelta, -FLIGHT.gimbalLimit, FLIGHT.gimbalLimit);
+/** Mouse look: X turns the airframe like an FPS, Y tilts the gimbal. Gimbal yaw stays 0. */
+export function stepLook(s: DroneState, cmd: Command): void {
+  s.yaw = wrapAngle(s.yaw + cmd.yawDelta);
   s.gimbalPitch = clamp(
     s.gimbalPitch + cmd.gimbalPitchDelta,
     FLIGHT.gimbalPitchMin,

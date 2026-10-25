@@ -1,4 +1,4 @@
-import { emptyCommand, type Command } from '../shared/types';
+import { consumeCommand, emptyCommand, mergeCommand, type Command } from '../shared/types';
 import { Sim } from './sim/sim';
 import { World } from './render/scene';
 import { Ui } from './ui/core';
@@ -17,7 +17,7 @@ const input = new Input(canvas);
 const profile = new LocalProfile();
 
 let saved = false;
-let pending: Command = emptyCommand();
+const pending: Command = emptyCommand();
 
 function newRaid(): Sim {
   const seed = (Math.random() * 0xffffffff) >>> 0;
@@ -32,7 +32,7 @@ let sim = newRaid();
 
 const ticker = createTicker((dt) => {
   sim.step(dt, pending);
-  pending = emptyCommand();
+  consumeCommand(pending);
 });
 
 let last = performance.now();
@@ -50,22 +50,6 @@ function saveRun(): void {
   profile.save(next);
 }
 
-/**
- * A frame can run zero sim steps (a 144 Hz display against a 60 Hz tick), so a
- * sample must never be thrown away. Held values overwrite, edges and mouse
- * deltas accumulate until a step actually consumes them.
- */
-function merge(sample: Command): void {
-  pending.forward = sample.forward;
-  pending.yaw = sample.yaw;
-  pending.lift = sample.lift;
-  pending.sprint = sample.sprint;
-  pending.zoom = sample.zoom;
-  pending.gimbalYawDelta += sample.gimbalYawDelta;
-  pending.gimbalPitchDelta += sample.gimbalPitchDelta;
-  if (sample.actions.length > 0) pending.actions.push(...sample.actions);
-}
-
 function frame(now: number): void {
   const dt = Math.min(0.1, (now - last) / 1000);
   last = now;
@@ -79,7 +63,9 @@ function frame(now: number): void {
   }
 
   input.active = sim.phase === 'active' || sim.phase === 'lockdown';
-  merge(input.sample());
+  // A frame can run zero sim steps (144 Hz display) or several (slow frame).
+  // mergeCommand and consumeCommand keep both cases from losing input.
+  mergeCommand(pending, input.sample());
   ticker(dt);
 
   world.sync(sim, now / 1000, dt);

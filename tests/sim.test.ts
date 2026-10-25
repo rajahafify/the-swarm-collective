@@ -2,8 +2,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Sim } from '../game/sim/sim';
 import { NullRecorder } from '../game/recorder/recorder';
-import { emptyCommand } from '../shared/types';
-import { createDrone, stepDrone } from '../game/sim/flight';
+import { consumeCommand, emptyCommand, mergeCommand } from '../shared/types';
+import { createDrone, FLIGHT, stepDrone } from '../game/sim/flight';
+import { createTicker } from '../game/sim/tick';
 import { buildWing, distanceToLane } from '../game/sim/wing';
 import { mulberry32 } from '../game/sim/math';
 
@@ -125,8 +126,9 @@ test('two minutes of noisy input never produces NaN', () => {
     const cmd = emptyCommand();
     cmd.forward = phase === 0 ? 1 : phase === 1 ? -1 : 0;
     cmd.yaw = phase === 2 ? 0.7 : phase === 3 ? -0.7 : 0;
+    cmd.strafe = phase === 1 ? 1 : phase === 3 ? -1 : 0;
     cmd.lift = i % 200 < 60 ? 1 : i % 200 > 160 ? -1 : 0;
-    cmd.gimbalYawDelta = Math.sin(i / 40) * 0.01;
+    cmd.yawDelta = Math.sin(i / 40) * 0.01;
     cmd.gimbalPitchDelta = Math.cos(i / 55) * 0.01;
     sim.step(1 / 60, cmd);
     assert.ok(Number.isFinite(sim.drone.pos.x), 'x went non-finite at ' + i);
@@ -162,7 +164,7 @@ test('holding the right-turn input moves the drone toward screen right', () => {
   assert.ok(drone.vel.x < -0.5, 'x velocity ' + drone.vel.x);
 });
 
-test('the camera starts in chase view and C toggles it', () => {
+test('the camera starts in chase view and V toggles it', () => {
   const sim = new Sim(5, new NullRecorder());
   sim.launch();
   assert.equal(sim.viewMode, 'chase');
@@ -189,12 +191,82 @@ test('a shot works from chase view, using the gimbal aim', () => {
   assert.ok(shot.score > 0);
 });
 
-test('flying forward turns the airframe toward the gimbal, not the view', () => {
+function angleBetween(a: number, b: number): number {
+  let d = a - b;
+  while (d > Math.PI) d -= Math.PI * 2;
+  while (d < -Math.PI) d += Math.PI * 2;
+  return Math.abs(d);
+}
+
+test('mouse look turns the airframe with no stop', () => {
   const sim = new Sim(5, new NullRecorder());
   sim.launch();
-  sim.drone.gimbalYaw = 0.8;
-  const viewBefore = sim.viewYaw;
-  for (let i = 0; i < 60; i += 1) sim.step(1 / 60, { ...emptyCommand(), forward: 1 });
-  assert.ok(Math.abs(sim.drone.gimbalYaw) < 0.05, 'gimbal offset ' + sim.drone.gimbalYaw);
-  assert.ok(Math.abs(sim.viewYaw - viewBefore) < 0.02, 'view drifted ' + (sim.viewYaw - viewBefore));
+  const before = sim.viewYaw;
+  // 172 degrees of mouse drag, spread over a second.
+  const turn = (-172 * Math.PI) / 180;
+  for (let i = 0; i < 60; i += 1) sim.step(1 / 60, { ...emptyCommand(), yawDelta: turn / 60 });
+  assert.ok(angleBetween(sim.viewYaw, before + turn) < 0.001, 'view turned to ' + sim.viewYaw);
+  assert.equal(sim.drone.gimbalYaw, 0);
+});
+
+test('W flies where the camera points, from the first moment', () => {
+  const sim = new Sim(5, new NullRecorder());
+  sim.launch();
+  sim.drone.pos = { x: 30, y: 4.5, z: 20 };
+  sim.step(1 / 60, { ...emptyCommand(), yawDelta: (-75 * Math.PI) / 180 });
+  const view = sim.viewYaw;
+  for (let i = 0; i < 15; i += 1) {
+    sim.step(1 / 60, { ...emptyCommand(), forward: 1 });
+    const heading = Math.atan2(sim.drone.vel.x, sim.drone.vel.z);
+    assert.ok(angleBetween(heading, view) < 0.01, 'tick ' + i + ' off by ' + angleBetween(heading, view));
+  }
+});
+
+test('D strafes toward screen right', () => {
+  const wing = buildWing(1);
+  const drone = createDrone({ x: 20, y: 8, z: 8 });
+  for (let i = 0; i < 60; i += 1) stepDrone(drone, { ...emptyCommand(), strafe: 1 }, 1 / 60, wing.boxes);
+  // At yaw 0 the camera looks down +Z and screen right is -X.
+  assert.ok(drone.vel.x < -3, 'x velocity ' + drone.vel.x);
+  assert.ok(Math.abs(drone.vel.z) < 0.01, 'z velocity ' + drone.vel.z);
+  assert.equal(drone.yaw, 0);
+});
+
+test('diagonal flight is capped at top speed', () => {
+  const s = speedOf(fly(3, { ...emptyCommand(), forward: 1, strafe: 1 }));
+  assert.ok(s <= FLIGHT.cruise + 1e-6, 'speed ' + s);
+  assert.ok(s > FLIGHT.cruise * 0.9, 'speed ' + s);
+});
+
+test('a slow frame keeps flying on every step it runs', () => {
+  const run = (frameDt: number, frames: number): number => {
+    const sim = new Sim(5, new NullRecorder());
+    sim.launch();
+    sim.drone.pos = { x: 30, y: 4.5, z: 20 };
+    const pending = emptyCommand();
+    const ticker = createTicker((dt) => {
+      sim.step(dt, pending);
+      consumeCommand(pending);
+    });
+    for (let i = 0; i < frames; i += 1) {
+      mergeCommand(pending, { ...emptyCommand(), forward: 1 });
+      ticker(frameDt);
+    }
+    return sim.drone.pos.x;
+  };
+  // One second at 60 fps and one second at 15 fps (four steps a frame) should fly about the same distance.
+  const fast = run(1 / 60, 60);
+  const slow = run(1 / 15, 15);
+  assert.ok(Math.abs(fast - slow) < 0.1 * Math.abs(fast - 30), 'fast ' + fast + ' slow ' + slow);
+});
+
+test('mouse deltas and actions are used once, held axes are kept', () => {
+  const pending = emptyCommand();
+  mergeCommand(pending, { ...emptyCommand(), forward: 1, strafe: -1, lift: 1, yawDelta: 0.2, actions: ['shutter'] });
+  consumeCommand(pending);
+  assert.equal(pending.forward, 1);
+  assert.equal(pending.strafe, -1);
+  assert.equal(pending.lift, 1);
+  assert.equal(pending.yawDelta, 0);
+  assert.deepEqual(pending.actions, []);
 });
